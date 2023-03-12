@@ -2,6 +2,8 @@ import numpy as np
 import copy
 import random
 import os
+import sys
+sys.stdout.reconfigure(encoding='utf-8')
 from tabulate import tabulate
 
 LINHA = 10
@@ -32,6 +34,11 @@ class Tabuleiro:
 
     #------------------- VERIFICA SE JOGADA É VALIDA -----------------------
     def verifica_jogada(self, linha, coluna):
+        if linha <= 0 or linha > LINHA:
+            return False
+        if coluna <= 0 or coluna > COLUNA:
+            return False
+
         if (self.matriz[linha-1][coluna-1] == 1 or self.matriz[linha-1][coluna-1] == 2):
             return False
         else:
@@ -74,51 +81,72 @@ class Tabuleiro:
         print(tabulate(lista, headers=cabecalhos, tablefmt="fancy_grid", stralign='center'))
 
 
-    #----------------------- VERIFICA SE O JOGADOR GANNHOU -------------------------
+
+    #----------------------- VERIFICA SE O JOGADOR GANHOU -------------------------
     def verifica_se_ganhou(self, peca):
         # Verifica linha
-        for i in range(LINHA):
+        for i in range(self.linha):
             ganhou = 0
-            for j in range(COLUNA):
+            for j in range(self.coluna):
                 if (self.matriz[i][j] == peca):
                     ganhou += 1
                     if (ganhou == 5):
+                        print('GANHOU')
                         return True
                 else:
                     ganhou = 0
 
         # Verifica coluna
-        for j in range(COLUNA):
+        for j in range(self.coluna):
             ganhou = 0
-            for i in range(LINHA):
+            for i in range(self.linha):
                 if (self.matriz[i][j] == peca):
                     ganhou += 1
                     if (ganhou == 5):
+                        print('GANHOU')
                         return True
                 else:
                     ganhou = 0
 
         # Verifica diagonal principal
-        ganhou = 0
-        for i in range(10):
-            if (self.matriz[i][i] == peca):
-                ganhou += 1
-                if (ganhou == 5):
-                    return True
-            else:
+        for i in range(self.linha - 4):
+            for j in range(self.coluna - 4):
                 ganhou = 0
+                for k in range(5):
+                    if (self.matriz[i+k][j+k] == peca):
+                        ganhou += 1
+                        if (ganhou == 5):
+                            print('GANHOU')
+                            return True
 
         # Verifica diagonal secundária
-        ganhou = 0
-        for i in range(10):
-            if (self.matriz[i][j] == peca):
-                ganhou += 1
-                if (ganhou == 5):
-                    return True
-                j -= 1
-            else:
+        for i in range(4, self.linha):
+            for j in range(self.coluna - 4):
                 ganhou = 0
-                j = 9
+                for k in range(5):
+                    if (self.matriz[i-k][j+k] == peca):
+                        ganhou += 1
+                        if (ganhou == 5):
+                            print('GANHOU')
+                            return True
+
+        return False
+
+
+
+    def heuristica_primeira_jogada(self, jogadas_player):
+        if len(jogadas_player) == 0:
+            return ((LINHA//2, COLUNA//2))
+        else:
+            while True:
+                linha = random.randint(jogadas_player[0][0] - 1, jogadas_player[0][0] + 1)
+                coluna = random.randint(jogadas_player[0][1] - 1, jogadas_player[0][1] + 1)
+                print(linha, coluna)
+
+                if gomoku.verifica_jogada(linha, coluna):
+                    break
+            return ((linha, coluna))
+            
 
     #-------- SE A JOGADA FOR VÁLIDA SEGUE, SENÃO O JOGADOR JOGA NOVAMENTE ---------
     def proximo_jogador(self, jogada_valida, jogador):
@@ -128,6 +156,7 @@ class Tabuleiro:
             else:
                 return 1
         else:
+            print('Já contem peça nessa casa, jogue em outra casa')
             return jogador 
         
     #----------------- LIMPA O TERMINAL ----------------
@@ -143,14 +172,27 @@ sorteio_jogador = random.randint(1, 2) # 1 - Pretas. 2 - Brancas
 ganhou = False # Alguem ganhou
 empate = False # jogo empatado
 
+jogadas_IA = []
+jogadas_player = []
+
+escolha = int(input('\n\nEscolha seu adiversário\n\n1 - Computador\n2 - Multiplayer\n>>> '))
+
+if escolha == 1:
+    adiversario = "computador"
+elif escolha == 2:
+    adiversario = "multiplayer"
+
 # Laço acontece enquanto alguem não ganhou ou o jogo não empatou
 while (not ganhou and not empate):
     
+
+    print(adiversario)
     gomoku.imprimir_matriz() # Imprimi o jogo na tela
 
     # Verifica de quem é a vez de jogar e faz a jogada
     if sorteio_jogador == 1:
         print("Jogador 1")
+        print(len(jogadas_player))
         linha = int(input("Linha: "))
         coluna = int(input("Coluna: "))
         jogada_valida = gomoku.verifica_jogada(linha, coluna)
@@ -158,18 +200,37 @@ while (not ganhou and not empate):
         #print(f'Jogada foi válida: {jogada_valida}')
         if jogada_valida:
             gomoku.jogar(linha, coluna, "pretas")
-    else:
-        print("Jogador 2")
-        linha = int(input("Linha: "))
-        coluna = int(input("Coluna: "))
-        jogada_valida = gomoku.verifica_jogada(linha, coluna)
+            jogadas_player.append((linha, coluna))
+
+        print(jogadas_player[0])
+        print(len(jogadas_player))
         
-        #print(f'Jogada foi válida: {jogada_valida}')
-        if jogada_valida:
-            gomoku.jogar(linha, coluna, "brancas")
+  
+    else:
+        if adiversario == 'computador':
+            print(f"Computador {len(jogadas_player)}")
+            
+            
+            if len(jogadas_IA) == 0:
+                jogadas_IA.append(gomoku.heuristica_primeira_jogada(jogadas_player))
+
+                jogada_valida = gomoku.verifica_jogada(jogadas_IA[0][0], jogadas_IA[0][1])
+
+                if jogada_valida:
+                    gomoku.jogar(int(jogadas_IA[0][0]), int(jogadas_IA[0][1]), "brancas")
+        elif adiversario == 'multiplayer':
+            print("Jogador 2")
+            linha = int(input("Linha: "))
+            coluna = int(input("Coluna: "))
+            jogada_valida = gomoku.verifica_jogada(linha, coluna)
+            
+            #print(f'Jogada foi válida: {jogada_valida}')
+            if jogada_valida:
+                gomoku.jogar(linha, coluna, "brancas")
         
 
-    gomoku.limpar_tela() # Limpa o terminal
+
+    #gomoku.limpar_tela() # Limpa o terminal
     
     # Se a jogada for válida, joga o outro jogador. Se for inválida o jogador joga novamente
     sorteio_jogador = gomoku.proximo_jogador(jogada_valida, sorteio_jogador) 
@@ -177,8 +238,11 @@ while (not ganhou and not empate):
     pretas = gomoku.verifica_se_ganhou(1) # Verifica se as pretas ganharam
     brancas = gomoku.verifica_se_ganhou(2) # Verifica se as brancas ganharam
 
-    ganhou = pretas # Verifica se alguem ganhou
-    ganhou = brancas # Verifica se alguem ganhou
+    if pretas:
+        ganhou = pretas
+    
+    if brancas:
+        ganhou = brancas
 
     # Verifica se o jogo empatou
     if not 0 in [elemento for linha in gomoku.matriz for elemento in linha]:
@@ -192,6 +256,5 @@ if brancas:
     print('JOGADOR 2 GANHOU!')
 if empate:
     print('O JOGO EMPATOU!')
-
 
 
